@@ -1,0 +1,25 @@
+class Colors:
+	_CFC = "\x1b["
+	RESET = _CFC + "0m"
+
+	FG_RED = _CFC + "38;2;252;54;45m"
+	FG_LIGHT_RED = _CFC + "38;2;255;111;105m"
+	FG_GREEN = _CFC + "38;2;58;201;0m"
+	FG_LIGHT_GREEN = _CFC + "38;2;7;240;123m"
+	FG_YELLOW = _CFC + "38;2;255;204;92m"
+	FG_BLUE = _CFC + "38;2;0;156;249m"
+	FG_CYAN = _CFC + "38;2;0;201;253m"
+	FG_WHITE = _CFC + "38;2;255;255;255m"
+	FG_BLACK = _CFC + "38;2;0;0;0m"
+
+	BG_RED = _CFC + "48;2;252;54;45m"
+	BG_LIGHT_RED = _CFC + "48;2;255;111;105m"
+	BG_GREEN = _CFC + "48;2;58;201;0m"
+	BG_LIGHT_GREEN = _CFC + "48;2;7;240;123m"
+	BG_YELLOW = _CFC + "48;2;255;204;92m"
+	BG_BLUE = _CFC + "48;2;0;156;249m"
+	BG_CYAN = _CFC + "48;2;0;201;253m"
+	BG_WHITE = _CFC + "48;2;255;255;255m"
+	BG_BLACK = _CFC + "48;2;0;0;0m"
+
+	
