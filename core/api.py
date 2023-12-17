@@ -1,10 +1,9 @@
-import asyncio
-import aiohttp
 import async_timeout
 import requests
+import aiohttp
+import asyncio
 import time
 import json
-import sys
 
 class API:
 	def __init__(self, 

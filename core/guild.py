@@ -95,7 +95,7 @@ class Guild:
 		}
 		return self.rq.post(f"webhooks/{webhhok_id}/{webhook_token}", [payload])
 
-	def send_message(self, channel_id: int, message: str, tts: bool = False, amount: int = 1) -> tuple:
+	def send_message_by_channel_id(self, channel_id: int, message: str, tts: bool = False, amount: int = 1) -> tuple:
 		payload = {
 			"content": message,
 			"tts": int(tts)
@@ -138,11 +138,18 @@ class Guild:
 
 	def delete_all_channels(self) -> tuple:
 		channels, status = self.get_all_channels()
-		channels_path = [f"channels/{channel['id']}" for channel in channels]
-		return self.rq.delete(channels_path)
+		channel_paths = [f"channels/{channel['id']}" for channel in channels]
+		sl = split_list(channel_paths, 10)
+		threads = [Thread(target = self.rq.delete, args = (channel_path,)) for channel_path in sl]
+		thread_runner(threads)
+		# return self.rq.delete(channel_paths)
 
 	def delete_channels(self, channel_ids: list) -> tuple:
-		self.rq.delete([f"channels/{channel_id}" for channel_id in channels_ids])
+		channel_paths = [f"channels/{channel_id}" for channel_id in channel_ids]
+		sl = split_list(channel_paths, 10)
+		threads = [Thread(target = self.rq.delete, args = (channel_path,)) for channel_path in sl]
+		thread_runner(threads)
+		# self.rq.delete()
 
 	def delete_emoji_by_id(self, emoji_id: int) -> tuple:
 		return self.rq.delete([self._route(f"emojis/{emoji_id}")])[0]

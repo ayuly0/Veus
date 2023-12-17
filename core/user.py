@@ -1,6 +1,8 @@
 __import__('sys').path.append("../")
-from .guild import Guilds
+from helpers.methods import split_list, thread_runner
 from console.logger import Logger
+from threading import Thread
+from .guild import Guilds
 
 class User:
 	def __init__(self, requester: object):
@@ -34,6 +36,14 @@ class User:
 		self.bio = self.user_info["bio"]
 		return self.user_info
 
+	def get_friends(self) -> tuple:
+		res = self.rq.api.get("users/@me/relationships")
+		return res
+
+	def get_dms(self) -> tuple:
+		res = self.rq.api.get("users/@me/channels")
+		return res
+
 	def update_profile(self, new_bio: str, new_pronous: str) -> tuple:
 		payload = {
 			'bio': new_bio
@@ -52,23 +62,31 @@ class User:
 	def update_settings(self) -> tuple:
 		pass
 
-	def send_dm_message(self, channel_id: int, message: str, amount: int = 1) -> tuple:
+	def send_dm_by_id(self, channel_id: int, message: str, amount: int = 1) -> tuple:
 		payload = {
 			"content": message,
 		}
 		payloads = [payload for i in range(int(amount))]
-		return self.rq.post(f"channels/{channel_id}/messages", payloads)
+		sl = split_list(payloads, 10)
+		threads = [Thread(target = self.rq.post, args = (f"channels/{channel_id}/messages", payloads,)) for payloads in sl]
+		thread_runner(threads)
+		# return self.rq.post(f"channels/{channel_id}/messages", payloads)
 
 	def block_friend_by_id(self, user_id: int) -> tuple:
-		pass
+		payload = {
+			"type": 2
+		}
+		res = self.rq.put(f"users/@me/relationships/{user_id}")
+		return res
 
-	def block_friends(self) -> tuple:
-		pass
+	def block_all_friends(self) -> tuple:
+		friends, status = self.get_friends()
+
 
 	def close_dm_by_id(self, dm_id: int) -> tuple:
 		pass
 
-	def close_dms(self) -> tuple:
+	def close_all_dms(self) -> tuple:
 		pass
 
 	def unfriend_by_id(self, user_id: int) -> tuple:
