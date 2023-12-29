@@ -1,13 +1,15 @@
-__import__('sys').path.append("../")
+__import__("sys").path.append("../")
 from helpers.methods import split_list, thread_runner
 from console.logger import Logger
 from threading import Thread
 from .guild import Guilds
 
+
 class User:
+
 	def __init__(self, requester: object):
 		self.rq = requester
-		self.logger = Logger(debug = True)
+		self.logger = Logger(debug=True)
 		self.guilds = Guilds(self.rq, self.logger)
 		self.get_user_info()
 		self.username = f"{self.username}#{self.discriminator}"
@@ -45,9 +47,7 @@ class User:
 		return res
 
 	def update_profile(self, new_bio: str, new_pronous: str) -> tuple:
-		payload = {
-			'bio': new_bio
-		}
+		payload = {"bio": new_bio}
 		res, status = self.rq.patch("users/@me/profile", [payload])[0]
 		if status == 204:
 			self.logger.success(f"Update bio to {new_bio}")
@@ -62,26 +62,35 @@ class User:
 	def update_settings(self) -> tuple:
 		pass
 
-	def send_dm_by_id(self, channel_id: int, message: str, amount: int = 1) -> tuple:
+	def send_dm_by_id(self,
+	                  channel_id: int,
+	                  message: str,
+	                  amount: int = 1) -> tuple:
 		payload = {
-			"content": message,
+		    "content": message,
 		}
 		payloads = [payload for i in range(int(amount))]
 		sl = split_list(payloads, 10)
-		threads = [Thread(target = self.rq.post, args = (f"channels/{channel_id}/messages", payloads,)) for payloads in sl]
+		threads = [
+		    Thread(
+		        target=self.rq.post,
+		        args=(
+		            f"channels/{channel_id}/messages",
+		            payloads,
+		            "http://127.0.0.1:8118",
+		        ),
+		    ) for payloads in sl
+		]
 		thread_runner(threads)
 		# return self.rq.post(f"channels/{channel_id}/messages", payloads)
 
 	def block_friend_by_id(self, user_id: int) -> tuple:
-		payload = {
-			"type": 2
-		}
+		payload = {"type": 2}
 		res = self.rq.put(f"users/@me/relationships/{user_id}")
 		return res
 
 	def block_all_friends(self) -> tuple:
 		friends, status = self.get_friends()
-
 
 	def close_dm_by_id(self, dm_id: int) -> tuple:
 		pass

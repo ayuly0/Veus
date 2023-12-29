@@ -1,0 +1,6 @@
+InquirerPy
+yaspin
+asyncio
+aiohttp
+async_timeout
+requests

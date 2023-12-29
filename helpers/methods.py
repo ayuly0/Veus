@@ -1,4 +1,3 @@
-
 def thread_runner(threads):
     for thread in threads:
         thread.start()
@@ -9,3 +8,11 @@ def thread_runner(threads):
 def split_list(a, n):
     k, m = divmod(len(a), n)
     return (a[i*k+min(i, m):(i+1)*k+min(i+1, m)] for i in range(n))
+
+def get_proxies():
+    with open("proxies.txt", "r") as f:
+        proxies = f.read().split('\n')
+        proxies.pop(-1)
+    if proxies:
+        return proxies
+    return None
