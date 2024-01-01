@@ -1,20 +1,21 @@
 __import__("sys").path.append("../")
+from asyncio import all_tasks
 from helpers.methods import split_list, thread_runner
 from console.logger import Logger
 from .requester import Requester
 from threading import Thread
-from typing import Union
+from typing import Union, Dict
+
 
 class Guilds:
-
 	def __init__(self, requester: Requester, logger: Logger):
 		self.rq = requester
 		self.logger = logger
 		self._guilds_info, _ = self.rq.get(path="users/@me/guilds")[0]
 		self.guild_ids = {
-		    int(guild["id"]): guild["name"] for guild in self._guilds_info
+			int(guild["id"]): guild["name"] for guild in self._guilds_info
 		}
-		self.loaded_guilds = {}
+		self.loaded_guilds: Dict[int, Guild] = {}
 
 	def load_guild(self, guild_id: int) -> None:
 		self.loaded_guilds[guild_id] = Guild(self.rq, self.logger, guild_id)
@@ -37,7 +38,6 @@ class ChannelTypes:
 
 
 class Guild:
-
 	def __init__(self, requester: Requester, logger: Logger, guild_id: int):
 		self.rq = requester
 		self.logger = logger
@@ -69,13 +69,12 @@ class Guild:
 		return self.rq.get(self._route("roles"))[0]
 
 	def get_all_users(self) -> tuple:
-		response, status_code = self.rq.get(
-		    self._route("members?limit=1000"))[0]
+		response, status_code = self.rq.get(self._route("members?limit=1000"))[0]
 		if status_code != 200:
 			return response, status_code
 
 		users_ids = [
-		    [user["user"]["id"], user["user"]["username"]] for user in response
+			[user["user"]["id"], user["user"]["username"]] for user in response
 		]
 		return tuple(users_ids)
 
@@ -93,67 +92,80 @@ class Guild:
 		payload = {"icon": icon}
 		return self.rq.patch(f"guilds/{self.guild_id}", [payload])
 
-	def send_webhook_message(self,
-	                         webhhok_id: int,
-	                         webhook_token: str,
-	                         message: str,
-	                         tts: bool = False) -> list:
+	def send_webhook_message(
+		self, webhhok_id: int, webhook_token: str, message: str, tts: bool = False
+	) -> list:
 		payload = {"content": message, "tts": tts}
 		return self.rq.post(f"webhooks/{webhhok_id}/{webhook_token}", [payload])
 
-	def send_message_by_channel_id(self,
-	                               channel_id: int,
-	                               message: str,
-	                               tts: bool = False,
-	                               amount: int = 1) -> Union[list, None]:
+	def send_message_by_channel_id(
+		self, channel_id: int, message: str, tts: bool = False, amount: int = 1
+	) -> Union[list, None]:
 		payload = {"content": message, "tts": int(tts)}
 		payloads = [payload for _ in range(int(amount))]
 		sl = split_list(payloads, 10)
 		threads = [
-		    Thread(
-		        target=self.rq.post,
-		        args=(
-		            f"channels/{channel_id}/messages",
-		            payloads,
-		            "http://127.0.0.1:8118",
-		        ),
-		    ) for payloads in sl
+			Thread(
+				target=self.rq.post,
+				args=(
+					f"channels/{channel_id}/messages",
+					payloads,
+					"http://127.0.0.1:8118",
+				),
+			)
+			for payloads in sl
 		]
 		thread_runner(threads)
 		# return self.rq.post(f"channels/{channel_id}/messages", payloads)
 
-	def create_webhook(self,
-	                   channel_id: int,
-	                   name: str,
-	                   avatar: str = "") -> tuple:
+	def create_invite_link(
+		self,
+		max_age: int = 2592000,
+		max_uses: int = 100,
+		temporary: bool = False,
+		unique: bool = True,
+	) -> None:
+		all_channels = self.get_all_channels()[0]
+		payload = {
+			"max_age": max_age,
+			"max_uses": max_uses,
+			"temporary": temporary,
+			"unique": unique,
+		}
+		for channel in all_channels:
+			res = self.rq.api.post(f"channels/{channel['id']}/invites", payload)[0]
+			if res["code"] == 10003:
+				continue
+			self.logger.info(f"Invite link https://discord.gg/{res['code']}")
+			break
+		self.logger.fail("Can't create invite link!")
+
+	def create_webhook(self, channel_id: int, name: str, avatar: str = "") -> tuple:
 		payload = {"name": name, "avatar": avatar}
 		return self.rq.post(f"channels/{channel_id}/webhooks", [payload])[0]
 
-	def create_roles(self,
-	                 name: str,
-	                 permissions: int = 0,
-	                 color: int = 0,
-	                 amount: int = 1) -> list:
+	def create_roles(
+		self, name: str, permissions: int = 0, color: int = 0, amount: int = 1
+	) -> list:
 		payload = {"name": name, "color": color, "permissions": permissions}
-		return self.rq.post(self._route("roles"),
-		                    [payload for _ in range(int(amount))])
+		return self.rq.post(self._route("roles"), [payload for _ in range(int(amount))])
 
-	def create_channels(self,
-	                    name: str,
-	                    channel_type: int = ChannelTypes.GUILD_TEXT,
-	                    amount: int = 1) -> Union[list, None]:
+	def create_channels(
+		self, name: str, channel_type: int = ChannelTypes.GUILD_TEXT, amount: int = 1
+	) -> Union[list, None]:
 		payload = {"name": name, "type": channel_type}
 		# paths = [self._route("channels") for i in range(int(amount))]
 		payloads = [payload for _ in range(int(amount))]
 		sl = split_list(payloads, 10)
 		threads = [
-		    Thread(
-		        target=self.rq.post,
-		        args=(
-		            self._route("channels"),
-		            payloads,
-		        ),
-		    ) for payloads in sl
+			Thread(
+				target=self.rq.post,
+				args=(
+					self._route("channels"),
+					payloads,
+				),
+			)
+			for payloads in sl
 		]
 		thread_runner(threads)
 		# return self.rq.post(paths, payloads)
@@ -166,8 +178,7 @@ class Guild:
 		channel_paths = [f"channels/{channel['id']}" for channel in channels]
 		sl = split_list(channel_paths, 10)
 		threads = [
-		    Thread(target=self.rq.delete, args=(channel_path,))
-		    for channel_path in sl
+			Thread(target=self.rq.delete, args=(channel_path,)) for channel_path in sl
 		]
 		thread_runner(threads)
 		# return self.rq.delete(channel_paths)
@@ -176,8 +187,7 @@ class Guild:
 		channel_paths = [f"channels/{channel_id}" for channel_id in channel_ids]
 		sl = split_list(channel_paths, 10)
 		threads = [
-		    Thread(target=self.rq.delete, args=(channel_path,))
-		    for channel_path in sl
+			Thread(target=self.rq.delete, args=(channel_path,)) for channel_path in sl
 		]
 		thread_runner(threads)
 		# self.rq.delete()
@@ -202,8 +212,7 @@ class Guild:
 			role_paths.append(self._route(f"roles/{role['id']}"))
 		sl = split_list(role_paths, 5)
 		threads = [
-		    Thread(target=self.rq.delete, args=(role_paths,))
-		    for role_paths in sl
+			Thread(target=self.rq.delete, args=(role_paths,)) for role_paths in sl
 		]
 		thread_runner(threads)
 
@@ -230,12 +239,13 @@ class Guild:
 			self.logger.warn(f"User is owner of {self.name} guild!")
 			return None
 		payload = {"lurking": False}
-		res, status = self.rq.delete([f"users/@me/guilds/{self.guild_id}"],
-		                             [payload])[0]
+		res, status = self.rq.delete([f"users/@me/guilds/{self.guild_id}"], [payload])[
+			0
+		]
 		self.logger.debug(res)
 		self.logger.success(
-		    f"Leave {self.name} guild.") if status == 204 else self.logger.fail(
-		        f"Leave {self.name} guild.")
+			f"Leave {self.name} guild."
+		) if status == 204 else self.logger.fail(f"Leave {self.name} guild.")
 
 	def delete_guild(self) -> None:
 		if not self.is_owner:
@@ -243,6 +253,6 @@ class Guild:
 			return None
 		res, status = self.rq.post([f"users/@me/guilds/{self.guild_id}/delete"])
 		self.logger.debug(res)
-		self.logger.success(f"Delete {self.name} guild."
-		                   ) if status == 204 else self.logger.fail(
-		                       f"Delete {self.name} guild.")
+		self.logger.success(
+			f"Delete {self.name} guild."
+		) if status == 204 else self.logger.fail(f"Delete {self.name} guild.")

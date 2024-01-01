@@ -1,16 +1,18 @@
 __import__("sys").path.append("../")
 from helpers.methods import split_list, thread_runner
 from console.logger import Logger
+from .requester import Requester
 from threading import Thread
 from .guild import Guilds
 
 
 class User:
-
-	def __init__(self, requester: object):
+	def __init__(self, requester: Requester):
 		self.rq = requester
 		self.logger = Logger(debug=True)
 		self.guilds = Guilds(self.rq, self.logger)
+		self.discriminator = ""
+		self.username = ""
 		self.get_user_info()
 		self.username = f"{self.username}#{self.discriminator}"
 		self.logger.set_username(self.username)
@@ -62,31 +64,29 @@ class User:
 	def update_settings(self) -> tuple:
 		pass
 
-	def send_dm_by_id(self,
-	                  channel_id: int,
-	                  message: str,
-	                  amount: int = 1) -> tuple:
+	def send_dm_by_id(self, channel_id: int, message: str, amount: int = 1) -> tuple:
 		payload = {
-		    "content": message,
+			"content": message,
 		}
 		payloads = [payload for i in range(int(amount))]
 		sl = split_list(payloads, 10)
 		threads = [
-		    Thread(
-		        target=self.rq.post,
-		        args=(
-		            f"channels/{channel_id}/messages",
-		            payloads,
-		            "http://127.0.0.1:8118",
-		        ),
-		    ) for payloads in sl
+			Thread(
+				target=self.rq.post,
+				args=(
+					f"channels/{channel_id}/messages",
+					payloads,
+					"http://127.0.0.1:8118",
+				),
+			)
+			for payloads in sl
 		]
 		thread_runner(threads)
 		# return self.rq.post(f"channels/{channel_id}/messages", payloads)
 
 	def block_friend_by_id(self, user_id: int) -> tuple:
 		payload = {"type": 2}
-		res = self.rq.put(f"users/@me/relationships/{user_id}")
+		res = self.rq.put(f"users/@me/relationships/{user_id}", payload)
 		return res
 
 	def block_all_friends(self) -> tuple:
