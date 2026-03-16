@@ -8,7 +8,9 @@ class Colors:
 	FG_LIGHT_GREEN = _CFC + "38;2;7;240;123m"
 	FG_YELLOW = _CFC + "38;2;255;204;92m"
 	FG_BLUE = _CFC + "38;2;0;156;249m"
-	FG_CYAN = _CFC + "38;2;0;201;253m"
+	FG_CYAN = _CFC + "0;36m"
+	FG_MAGENTA = _CFC + "0;35m"
+	FG_PURPLE = _CFC + "0;35m"
 	FG_WHITE = _CFC + "38;2;255;255;255m"
 	FG_BLACK = _CFC + "38;2;0;0;0m"
 
