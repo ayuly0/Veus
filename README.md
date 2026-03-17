@@ -3,7 +3,7 @@
 <div align="center">
   <h1 align="center">Veus</h1>
   <p align="center">
-    <strong>The Senior Discord Experience</strong>
+    <strong>The Discord Experience</strong>
     <br />
     A minimalist, high-performance Discord terminal controller and shell.
     <br />
@@ -24,7 +24,7 @@ Veus (v1) transforms your Discord interaction into a professional terminal shell
 - **High-Performance Startup**: Parallelized synchronization of profile and server data.
 - **Bulletproof ID Resolution**: Smart 4-digit shortcuts with interactive collision handling.
 - **Windowed Fetching**: Professional pagination with older/newer scrolling and targeted jumps.
-- **Senior Proxy System**: Round-robin and Random rotation with automatic health tracking and SSL bypass.
+- **Proxy System**: Round-robin and Random rotation with automatic health tracking and SSL bypass.
 - **The Landing Zone**: A unified, high-impact session initiation menu (Direct, Proxy, or Vault).
 - **Deep Message Inspection**: Full context retrieval for any message ID (Direct + Fallback).
 
@@ -53,7 +53,7 @@ Veus (v1) transforms your Discord interaction into a professional terminal shell
 
 ---
 
-## Senior Command Suite
+## Command Suite
 
 | Category | Primary Command | Aliases | Description |
 | :--- | :--- | :--- | :--- |
