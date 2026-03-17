@@ -17,7 +17,7 @@
 
 ## The Experience
 
-Veus (v1) transforms your Discord interaction into a terminal shell. Built with a senior-tier asynchronous architecture, it focuses on performance, security, and visual excellence.
+Veus (v1) transforms your Discord interaction into a terminal shell. Built with a asynchronous architecture, it focuses on performance, security, and visual excellence.
 
 ### Key Highlights
 
