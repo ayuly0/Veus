@@ -18,7 +18,8 @@ class API:
         logger: Logger, 
         api_version: int = DEFAULT_API_VERSION,
         proxy_mgr: Optional[Any] = None,
-        verify: bool = True
+        verify: bool = True,
+        show_logs: bool = True
     ) -> None:
         self.logger = logger
         self._api_version = api_version
@@ -26,6 +27,7 @@ class API:
         self._is_bot = is_bot
         self._proxy_mgr = proxy_mgr
         self._verify = verify
+        self._show_logs = show_logs
         self._rotation_lock = asyncio.Lock()
         
         self._headers = {
@@ -77,7 +79,7 @@ class API:
             try:
                 # Track the active proxy for logging
                 proxy_str = self._proxy_mgr.get_current() if self._proxy_mgr else "Direct"
-                if not silent:
+                if not silent and self._show_logs:
                     self.logger.info(f"[{proxy_str}] {method} {path}")
                 
                 response = await self.client.request(

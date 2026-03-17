@@ -4,5 +4,5 @@
     "proxy_strategy": "round-robin",
     "api_version": 9,
     "timeout": 360.0,
-    "show_proxy_logs": true
+    "show_proxy_logs": false
 }

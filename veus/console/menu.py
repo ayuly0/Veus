@@ -52,8 +52,8 @@ class Menu:
         """Main entry point for the menu loop."""
         os.system("clear" if os.name != "nt" else "cls")
         
-        # Soft, chill, minimal banner
-        print(f"\n {Colors.FG_MAGENTA}◌{Colors.RESET} {Colors.FG_WHITE}veus{Colors.RESET} {Colors.FG_CYAN}·{Colors.RESET} {Colors.FG_WHITE}shell{Colors.RESET}\n")
+        # Soft, initial entry banner
+        print(f"\n {Colors.FG_MAGENTA}◌{Colors.RESET} {Colors.FG_WHITE}veus{Colors.RESET} {Colors.FG_CYAN}·{Colors.RESET} {Colors.FG_WHITE}shell established{Colors.RESET}\n")
         
         await self.login()
         await self.main_loop()
@@ -68,7 +68,8 @@ class Menu:
         if proxies:
             self.proxy_mgr.add_proxies(proxies)
         
-        self.rq = Requester(token, is_bot, self.logger, proxy_mgr=self.proxy_mgr, verify=verify)
+        show_logs = self.config.get("show_proxy_logs", True)
+        self.rq = Requester(token, is_bot, self.logger, proxy_mgr=self.proxy_mgr, verify=verify, show_logs=show_logs)
         self.user = User(self.rq, self.logger)
         self.guilds = Guilds(self.rq, self.logger)
 
@@ -78,7 +79,35 @@ class Menu:
                 self.guilds.fetch_all()
             )
             
-        self.logger.success("session live")
+        # Display the Senior Dashboard
+        self._display_dashboard()
+
+    def _display_dashboard(self):
+        """High-impact dashboard showing identity and state."""
+        os.system("clear" if os.name != "nt" else "cls")
+        
+        print(f"\n {Colors.FG_MAGENTA}◌{Colors.RESET} {Colors.FG_WHITE}veus{Colors.RESET} {Colors.FG_CYAN}·{Colors.RESET} {Colors.FG_WHITE}dashboard{Colors.RESET}")
+        print(f" {Colors.FG_WHITE}──────────────────────────────────────────{Colors.RESET}")
+        
+        # Identity Section
+        name = self.user.global_name or self.user.username
+        print(f" {Colors.FG_CYAN}IDENTITY  {Colors.RESET} {Colors.FG_WHITE}{name} ({self.user.username}){Colors.RESET}")
+        print(f" {Colors.FG_CYAN}ID        {Colors.RESET} {Colors.FG_WHITE}{self.user.user_id}{Colors.RESET}")
+        
+        # Stats Section
+        guild_count = len(self.guilds.items) if self.guilds else 0
+        print(f" {Colors.FG_CYAN}SERVERS   {Colors.RESET} {Colors.FG_WHITE}{guild_count} active contexts{Colors.RESET}")
+        
+        # Connection/Settings Section
+        ssl = "ENABLED" if self.config.get("ssl_verify", True) else "DISABLED"
+        api_v = self.config.get("api_version", 9)
+        print(f" {Colors.FG_CYAN}NETWORK   {Colors.RESET} {Colors.FG_WHITE}API v{api_v} | SSL: {ssl}{Colors.RESET}")
+        
+        proxy = self.proxy_mgr.get_current() or "Direct"
+        print(f" {Colors.FG_CYAN}VIA       {Colors.RESET} {Colors.FG_WHITE}{proxy}{Colors.RESET}")
+        
+        print(f" {Colors.FG_WHITE}──────────────────────────────────────────{Colors.RESET}\n")
+        self.logger.success("session live and secured")
 
     async def main_loop(self):
         """Senior command loop with rich feedback."""

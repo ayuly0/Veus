@@ -6,8 +6,8 @@ from veus.console.logger import Logger
 class Requester:
     """Handles high-level request orchestration and mass-actions."""
     
-    def __init__(self, token: str, is_bot: bool, logger: Logger, proxy_mgr: Optional[Any] = None, verify: bool = True):
-        self.api = API(token, is_bot, logger, proxy_mgr=proxy_mgr, verify=verify)
+    def __init__(self, token: str, is_bot: bool, logger: Logger, proxy_mgr: Optional[Any] = None, verify: bool = True, show_logs: bool = True):
+        self.api = API(token, is_bot, logger, proxy_mgr=proxy_mgr, verify=verify, show_logs=show_logs)
         self.logger = logger
 
     async def shutdown(self):

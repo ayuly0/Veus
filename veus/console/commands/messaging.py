@@ -5,7 +5,7 @@ from veus.console.registry import cmd
 from veus.console.colors import Colors
 
 @cmd.register(name="message", category="Messaging", description="Send a message", aliases=["msg", "send"])
-async def message(ctx, target: str = "focus", content: str = ""):
+async def message(ctx, target: str = "focus", content: str = "", amount: Union[int, str] = 1):
     if not ctx.current_guild and target == "all":
         ctx.logger.error("'all' broadcast is only available within a guild context.")
         return
@@ -44,10 +44,17 @@ async def message(ctx, target: str = "focus", content: str = ""):
     
     if not content: return
 
+    try:
+        amt_int = int(amount)
+    except ValueError:
+        ctx.logger.error(f"Invalid amount: {amount}")
+        return
+
     import asyncio
-    tasks = [ctx.rq.api.post(f"channels/{tid}/messages", {"content": content}) for tid in target_ids]
+    payloads = [{"content": content} for _ in range(amt_int)]
+    tasks = [ctx.rq.mass_post(f"channels/{tid}/messages", payloads) for tid in target_ids]
     
-    with ctx.logger.yaspin(text=f"dispatching to {len(target_ids)} chan(s)...", color="magenta"):
+    with ctx.logger.yaspin(text=f"dispatching {amt_int} msg(s) to {len(target_ids)} chan(s)...", color="magenta"):
         await asyncio.gather(*tasks)
     
     ctx.logger.success("sent")
@@ -315,3 +322,55 @@ async def inspect(ctx, message_id: str):
         print(f"\n   {Colors.FG_WHITE}{content}{Colors.RESET}\n")
     else:
         ctx.logger.error(f"Inaccessible: Received status {status}")
+
+@cmd.register(name="clear-self", category="Messaging", description="Delete your last own messages", aliases=["cs", "purge-me"])
+async def clear_self(ctx, amount: Union[int, str] = 10):
+    channel_id = getattr(ctx, "last_channel_id", None)
+    if not channel_id:
+        ctx.logger.error("No channel active. Use 'fetch' or 'message' first.")
+        return
+
+    try:
+        limit = int(amount)
+    except ValueError:
+        ctx.logger.error(f"Invalid amount: {amount}")
+        return
+
+    if not ctx.user or not ctx.user.id:
+        ctx.logger.error("User ID not initialized.")
+        return
+
+    with ctx.logger.yaspin(text=f"Purging {limit} of your messages...", color="magenta"):
+        # We need to fetch enough messages to find 'limit' of ours
+        # Discord limit is usually 100 per fetch
+        fetched = 0
+        deleted = 0
+        before_id = None
+        
+        while deleted < limit and fetched < 500: # Safety cap
+            url = f"channels/{channel_id}/messages?limit=100"
+            if before_id:
+                url += f"&before={before_id}"
+            
+            messages, status = await ctx.rq.api.get(url)
+            if status != 200 or not messages:
+                break
+            
+            before_id = messages[-1]['id']
+            fetched += len(messages)
+            
+            my_messages = [m['id'] for m in messages if m['author']['id'] == ctx.user.id]
+            
+            for mid in my_messages:
+                if deleted >= limit:
+                    break
+                _, d_status = await ctx.rq.api.delete(f"channels/{channel_id}/messages/{mid}")
+                if d_status in (200, 204):
+                    deleted += 1
+                elif d_status == 429: # Rate limit
+                    await asyncio.sleep(1) # Simple backoff
+                
+            if len(messages) < 100:
+                break
+
+    ctx.logger.success(f"Cleared {deleted} message(s).")
