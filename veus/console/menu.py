@@ -5,9 +5,10 @@ import asyncio
 from typing import Optional, Any
 from InquirerPy import inquirer
 from InquirerPy.base.control import Choice
-from prompt_toolkit.shortcuts import PromptSession
+from prompt_toolkit.shortcuts import PromptSession, print_formatted_text
 from prompt_toolkit.history import FileHistory
 from prompt_toolkit.formatted_text import ANSI
+from prompt_toolkit.patch_stdout import patch_stdout
 
 from veus.console.logger import Logger
 from veus.console.token_handler import TokenHandler
@@ -17,6 +18,8 @@ from veus.console.commands import load_commands
 from veus.core.requester import Requester
 from veus.core.user import User
 from veus.core.guild import Guild, Guilds
+from veus.core.gateway import Gateway
+from veus.core.scripting import ScriptingEngine
 
 # Load modular commands
 load_commands()
@@ -38,6 +41,7 @@ class Menu:
         self.user: Optional[User] = None
         self.guilds: Optional[Guilds] = None
         self.current_guild: Optional[Guild] = None
+        self.gateway: Optional[Gateway] = None
         
         # Messaging Context (Soft State)
         self.last_channel_id: Optional[str] = None
@@ -46,6 +50,9 @@ class Menu:
         self.last_oldest_id: Optional[str] = None
         self.last_newest_id: Optional[str] = None
         
+        # Scripting Engine
+        self.scripting = ScriptingEngine(self, self.logger)
+        
         self._running = True
 
     async def start(self):
@@ -53,7 +60,7 @@ class Menu:
         os.system("clear" if os.name != "nt" else "cls")
         
         # Soft, initial entry banner
-        print(f"\n {Colors.FG_MAGENTA}◌{Colors.RESET} {Colors.FG_WHITE}veus{Colors.RESET} {Colors.FG_CYAN}·{Colors.RESET} {Colors.FG_WHITE}shell established{Colors.RESET}\n")
+        print_formatted_text(ANSI(f"\n {Colors.FG_MAGENTA}◌{Colors.RESET} {Colors.FG_WHITE}veus{Colors.RESET} {Colors.FG_CYAN}·{Colors.RESET} {Colors.FG_WHITE}shell established{Colors.RESET}\n"))
         
         await self.login()
         await self.main_loop()
@@ -79,6 +86,17 @@ class Menu:
                 self.guilds.fetch_all()
             )
             
+        # Initialize and Start Gateway for real-time features
+        self.gateway = Gateway(token, is_bot, self.logger)
+        asyncio.create_task(self.gateway.connect())
+        
+        # Register "The Eye" listener
+        self.gateway.on("MESSAGE_CREATE", self._handle_live_message)
+        
+        # Register Scripting Engine hooks
+        self.gateway.on("MESSAGE_CREATE", lambda d: asyncio.create_task(self.scripting.trigger("MESSAGE_CREATE", d)))
+        self.scripting.load_scripts()
+            
         # Display the Senior Dashboard
         self._display_dashboard()
 
@@ -86,27 +104,27 @@ class Menu:
         """High-impact dashboard showing identity and state."""
         os.system("clear" if os.name != "nt" else "cls")
         
-        print(f"\n {Colors.FG_MAGENTA}◌{Colors.RESET} {Colors.FG_WHITE}veus{Colors.RESET} {Colors.FG_CYAN}·{Colors.RESET} {Colors.FG_WHITE}dashboard{Colors.RESET}")
-        print(f" {Colors.FG_WHITE}──────────────────────────────────────────{Colors.RESET}")
+        print_formatted_text(ANSI(f"\n {Colors.FG_MAGENTA}◌{Colors.RESET} {Colors.FG_WHITE}veus{Colors.RESET} {Colors.FG_CYAN}·{Colors.RESET} {Colors.FG_WHITE}dashboard{Colors.RESET}"))
+        print_formatted_text(ANSI(f" {Colors.FG_WHITE}──────────────────────────────────────────{Colors.RESET}"))
         
         # Identity Section
         name = self.user.global_name or self.user.username
-        print(f" {Colors.FG_CYAN}IDENTITY  {Colors.RESET} {Colors.FG_WHITE}{name} ({self.user.username}){Colors.RESET}")
-        print(f" {Colors.FG_CYAN}ID        {Colors.RESET} {Colors.FG_WHITE}{self.user.user_id}{Colors.RESET}")
+        print_formatted_text(ANSI(f" {Colors.FG_CYAN}IDENTITY  {Colors.RESET} {Colors.FG_WHITE}{name} ({self.user.username}){Colors.RESET}"))
+        print_formatted_text(ANSI(f" {Colors.FG_CYAN}ID        {Colors.RESET} {Colors.FG_WHITE}{self.user.user_id}{Colors.RESET}"))
         
         # Stats Section
         guild_count = len(self.guilds.items) if self.guilds else 0
-        print(f" {Colors.FG_CYAN}SERVERS   {Colors.RESET} {Colors.FG_WHITE}{guild_count} active contexts{Colors.RESET}")
+        print_formatted_text(ANSI(f" {Colors.FG_CYAN}SERVERS   {Colors.RESET} {Colors.FG_WHITE}{guild_count} active contexts{Colors.RESET}"))
         
         # Connection/Settings Section
         ssl = "ENABLED" if self.config.get("ssl_verify", True) else "DISABLED"
         api_v = self.config.get("api_version", 9)
-        print(f" {Colors.FG_CYAN}NETWORK   {Colors.RESET} {Colors.FG_WHITE}API v{api_v} | SSL: {ssl}{Colors.RESET}")
+        print_formatted_text(ANSI(f" {Colors.FG_CYAN}NETWORK   {Colors.RESET} {Colors.FG_WHITE}API v{api_v} | SSL: {ssl}{Colors.RESET}"))
         
         proxy = self.proxy_mgr.get_current() or "Direct"
-        print(f" {Colors.FG_CYAN}VIA       {Colors.RESET} {Colors.FG_WHITE}{proxy}{Colors.RESET}")
+        print_formatted_text(ANSI(f" {Colors.FG_CYAN}VIA       {Colors.RESET} {Colors.FG_WHITE}{proxy}{Colors.RESET}"))
         
-        print(f" {Colors.FG_WHITE}──────────────────────────────────────────{Colors.RESET}\n")
+        print_formatted_text(ANSI(f" {Colors.FG_WHITE}──────────────────────────────────────────{Colors.RESET}\n"))
         self.logger.success("session live and secured")
 
     async def main_loop(self):
@@ -114,37 +132,39 @@ class Menu:
         history_path = os.path.expanduser(self.config.get("history_file", "~/.veus_history"))
         session = PromptSession(history=FileHistory(history_path))
         
-        while self._running:
-            prompt = self._get_prompt()
-            try:
-                completer = await cmd.get_completer(self)
-                result = await session.prompt_async(ANSI(prompt), completer=completer)
-                
-                if not result: continue
-                
-                parts = shlex.split(result)
-                cmd_name = parts[0].lower()
-                args = parts[1:]
-                
-                metadata = cmd.get_command(cmd_name)
-                if metadata:
-                    await self._execute_command(metadata, args)
-                else:
-                    self.logger.error(f"command '{cmd_name}' unknown")
+        with patch_stdout():
+            while self._running:
+                prompt = self._get_prompt()
+                try:
+                    completer = await cmd.get_completer(self)
+                    result = await session.prompt_async(ANSI(prompt), completer=completer)
                     
-            except KeyboardInterrupt:
-                print("")
-                continue
-            except Exception as e:
-                self.logger.error(f"loop error: {e}")
+                    if not result: continue
+                    
+                    parts = shlex.split(result)
+                    cmd_name = parts[0].lower()
+                    args = parts[1:]
+                    
+                    metadata = cmd.get_command(cmd_name)
+                    if metadata:
+                        await self._execute_command(metadata, args)
+                    else:
+                        self.logger.error(f"command '{cmd_name}' unknown")
+                        
+                except KeyboardInterrupt:
+                    print("")
+                    continue
+                except Exception as e:
+                    self.logger.error(f"loop error: {e}")
 
     def _get_prompt(self) -> str:
-        """Minimalist, chill prompt aesthetic."""
-        user = f"{Colors.FG_CYAN}◖{Colors.BG_SOFT_CYAN}{Colors.FG_WHITE} {self.user.username} {Colors.RESET}{Colors.FG_CYAN}◗{Colors.RESET}" if self.user else ""
+        """Standardized shell identity prompt, hybrid layout."""
+        padding = " "
+        user = Colors.tag(self.user.username, bg=Colors.BG_SOFT_CYAN, fg=Colors.FG_WHITE) if self.user else ""
         guild = f" {Colors.FG_MAGENTA}{self.current_guild.name}{Colors.RESET}" if self.current_guild else ""
         chan = f" {Colors.FG_WHITE}#{self.last_channel_name}{Colors.RESET}" if self.last_channel_name else ""
         
-        return f"{user}{guild}{chan} {Colors.FG_CYAN}»{Colors.RESET} "
+        return f"{padding}{user}{guild}{chan}{Colors.FG_CYAN} »{Colors.RESET} "
 
     async def _execute_command(self, metadata: Any, args: list[str]):
         """Decentralized command execution."""
@@ -166,3 +186,17 @@ class Menu:
                 metadata.func(self, *final_args)
         except Exception as e:
             self.logger.error(f"Execution failed: {e}")
+
+    async def _handle_live_message(self, data: dict):
+        """Internal listener for 'The Eye' global monitor."""
+        # Don't log our own messages
+        if self.user and data.get("author", {}).get("id") == self.user.id:
+            return
+            
+        author = data.get("author", {}).get("username", "Unknown")
+        content = data.get("content", "")
+        # Only log if it's a mention or DM (Identity Vault awareness)
+        # Simplified for now: Log all messages in a "chill" way if the user enables it
+        if self.config.get("eye_monitor", False):
+            # Use a soft prefix for live messages
+            self.logger.info(f"{Colors.FG_MAGENTA}◌{Colors.RESET} {Colors.FG_WHITE}{author}{Colors.RESET}: {content}", prefix="EYE")

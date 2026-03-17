@@ -12,6 +12,7 @@ class Guild:
         self.id = guild_id
         self.name = "Unknown Guild"
         self._channels_cache: list[dict] = []
+        self._roles_cache: list[dict] = []
 
     async def initialize(self):
         """Fetch basic guild info."""
@@ -29,6 +30,22 @@ class Guild:
             self._channels_cache = data
             return data
         return []
+    
+    async def get_roles(self, force: bool = False) -> list[dict]:
+        """Fetch roles for this guild."""
+        if self._roles_cache and not force:
+            return self._roles_cache
+            
+        data, status = await self.rq.api.get(f"guilds/{self.id}/roles")
+        if status == 200:
+            self._roles_cache = data
+            return data
+        return []
+
+    async def get_members(self, limit: int = 1000) -> list[dict]:
+        """Fetch members for this guild."""
+        data, status = await self.rq.api.get(f"guilds/{self.id}/members", params={"limit": limit})
+        return data if status == 200 else []
 
     async def delete_channels(self, channel_ids: list[str]):
         """Mass delete channels by ID."""

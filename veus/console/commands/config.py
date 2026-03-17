@@ -1,3 +1,4 @@
+from prompt_toolkit import print_formatted_text, ANSI
 from veus.console.registry import cmd
 from veus.console.colors import Colors
 
@@ -32,7 +33,7 @@ async def config_set(ctx, key: str, value: str):
 @cmd.register(name="settings", category="Config", description="View current settings", aliases=["config", "cfg", "view"])
 async def settings(ctx):
     """Display all persistent settings."""
-    print(f"\n {Colors.FG_CYAN}○{Colors.RESET} {Colors.FG_WHITE}VEUS CONFIGURATION{Colors.RESET}\n")
+    print_formatted_text(ANSI(f"\n {Colors.FG_CYAN}○{Colors.RESET} {Colors.FG_WHITE}VEUS CONFIGURATION{Colors.RESET}\n"))
     for k, v in ctx.config.all.items():
-        print(f"   {Colors.FG_CYAN}{k.ljust(15)}{Colors.RESET} : {v}")
-    print("")
+        print_formatted_text(ANSI(f"   {Colors.FG_CYAN}{k.ljust(15)}{Colors.RESET} : {v}"))
+    print_formatted_text(ANSI(""))

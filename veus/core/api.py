@@ -3,6 +3,7 @@ import json
 import httpx
 from typing import Union, Any, Optional
 from veus.console.logger import Logger
+from veus.console.colors import Colors
 
 # Discord API Constants
 DEFAULT_API_VERSION = 10

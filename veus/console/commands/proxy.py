@@ -1,3 +1,4 @@
+from prompt_toolkit import print_formatted_text, ANSI
 from veus.console.registry import cmd
 from veus.console.colors import Colors
 
@@ -8,12 +9,12 @@ async def proxy_stats(ctx):
         ctx.logger.error("No proxy manager active.")
         return
         
-    print(f"\n{Colors.FG_BLUE}Proxy Pool Stats:{Colors.RESET}")
-    print(f"  Strategy: {mgr.strategy}")
-    print(f"  Total:    {mgr.total_count}")
-    print(f"  Healthy:  {mgr.healthy_count}")
-    print(f"  Current Index: {mgr._index}")
-    print("")
+    print_formatted_text(ANSI(f"\n{Colors.FG_BLUE}Proxy Pool Stats:{Colors.RESET}"))
+    print_formatted_text(ANSI(f"  Strategy: {mgr.strategy}"))
+    print_formatted_text(ANSI(f"  Total:    {mgr.total_count}"))
+    print_formatted_text(ANSI(f"  Healthy:  {mgr.healthy_count}"))
+    print_formatted_text(ANSI(f"  Current Index: {mgr._index}"))
+    print_formatted_text(ANSI(""))
 
 @cmd.register(category="Proxy", description="Switch rotation strategy")
 async def proxy_mode(ctx, mode: str):

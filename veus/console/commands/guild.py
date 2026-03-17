@@ -2,6 +2,7 @@ import asyncio
 from typing import Optional, Union
 from InquirerPy import inquirer
 from InquirerPy.base.control import Choice
+from prompt_toolkit import print_formatted_text, ANSI
 from veus.console.registry import cmd
 from veus.console.colors import Colors
 from veus.core.guild import Guild
@@ -43,12 +44,12 @@ async def channels(ctx, refresh: str = ""):
         ctx.logger.warn("No channels found or missing permissions.")
         return
         
-    print(f"\n{Colors.FG_BLUE}Channels in {ctx.current_guild.name}:{Colors.RESET}")
+    print_formatted_text(ANSI(f"\n{Colors.FG_BLUE}Channels in {ctx.current_guild.name}:{Colors.RESET}"))
     for c in channels:
         if c['type'] != 0: continue # Only text for now
         prefix = f"{Colors.FG_GREEN}▶{Colors.RESET} " if ctx.last_channel_id == c['id'] else "  "
-        print(f" {prefix}{Colors.FG_CYAN}{c['id']}{Colors.RESET} | {c['name']}")
-    print("")
+        print_formatted_text(ANSI(f" {prefix}{Colors.FG_CYAN}{c['id']}{Colors.RESET} | {c['name']}"))
+    print_formatted_text(ANSI(""))
 
 @cmd.register(name="select", category="Guild", description="Select a channel to focus", aliases=["focus", "use"])
 async def select(ctx, channel_id: Optional[str] = None):
