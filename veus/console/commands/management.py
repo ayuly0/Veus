@@ -1,6 +1,7 @@
 from typing import Optional, Union
 from InquirerPy import inquirer
 from InquirerPy.base.control import Choice
+from prompt_toolkit import print_formatted_text, ANSI
 from veus.console.registry import cmd
 from veus.console.colors import Colors
 
@@ -97,10 +98,10 @@ async def webhook(ctx, action: str = "list", target: Optional[str] = None, *, co
         if not webhooks:
             ctx.logger.warn("No webhooks found in this guild.")
             return
-        print(f"\n{Colors.FG_BLUE}Webhooks in {ctx.current_guild.name}:{Colors.RESET}")
+        print_formatted_text(ANSI(f"\n{Colors.FG_BLUE}Webhooks in {ctx.current_guild.name}:{Colors.RESET}"))
         for w in webhooks:
-            print(f" {Colors.FG_CYAN}{w['id']}{Colors.RESET} | {Colors.FG_WHITE}{w['name']}{Colors.RESET} (Channel: {w['channel_id']})")
-        print("")
+            print_formatted_text(ANSI(f" {Colors.FG_CYAN}{w['id']}{Colors.RESET} | {Colors.FG_WHITE}{w['name']}{Colors.RESET} (Channel: {w['channel_id']})"))
+        print_formatted_text(ANSI(""))
 
     elif action == "create":
         name = target or await inquirer.text(message="Enter webhook name:").execute_async()
@@ -112,7 +113,7 @@ async def webhook(ctx, action: str = "list", target: Optional[str] = None, *, co
         res = await ctx.current_guild.create_webhook(cid, name)
         if res:
             ctx.logger.success(f"Webhook created: {res['name']} ({res['id']})")
-            print(f" URL: {res['url']}")
+            print_formatted_text(ANSI(f" URL: {res['url']}"))
         else:
             ctx.logger.error("Failed to create webhook.")
 

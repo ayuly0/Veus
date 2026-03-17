@@ -1,5 +1,5 @@
 class Colors:
-	_CFC = "\x1b["
+	_CFC = "\033["
 	RESET = _CFC + "0m"
 
 	FG_RED = _CFC + "38;2;252;54;45m"
@@ -24,3 +24,8 @@ class Colors:
 	BG_SOFT_CYAN = _CFC + "0;46m"
 	BG_WHITE = _CFC + "48;2;255;255;255m"
 	BG_BLACK = _CFC + "48;2;0;0;0m"
+
+	@staticmethod
+	def tag(text: str, bg: str = "", fg: str = "", b_color: str = "\033[0;36m") -> str:
+		"""Standardized 'pill' style (◖ text ◗)."""
+		return f"{b_color}◖{Colors.RESET}{bg}{fg}{text}{Colors.RESET}{b_color}◗{Colors.RESET}"

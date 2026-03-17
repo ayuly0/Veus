@@ -31,14 +31,14 @@ class TokenHandler:
         """Consolidated 'Landing Zone' for professional session setup."""
         while True:
             choice = await inquirer.select(
-                message="Select Session Entry Type:",
+                message="Establish Session:",
                 choices=[
-                    Choice("direct", "Standard Direct (Unobfuscated)"),
-                    Choice("proxy", "Secure Tunnel (proxies.txt + SSL Bypass)"),
-                    Choice("vault", "Identity Vault (tokens.txt)"),
-                    Choice("exit", "Exit Application")
+                    Choice("direct", "Direct Access (Standard)"),
+                    Choice("proxy", "Encrypted Tunnel (Proxies)"),
+                    Choice("vault", "Identity Vault (Tokens)"),
+                    Choice("exit", "Terminate Shell")
                 ],
-                pointer="▶"
+                pointer="◌"
             ).execute_async()
 
             if choice == "exit":
@@ -65,7 +65,16 @@ class TokenHandler:
 
             # 3. Get Token
             method = choice if choice == "vault" else "input"
-            is_bot = await inquirer.confirm(message="Is this a Bot token?", default=False).execute_async()
+            
+            identity_type = await inquirer.select(
+                message="Identity Type:",
+                choices=[
+                    Choice(False, "User Persona (Standard)"),
+                    Choice(True, "Bot Application (System)")
+                ],
+                pointer="◌"
+            ).execute_async()
+            is_bot = identity_type
             
             token = ""
             if method == "input" or choice == "proxy":

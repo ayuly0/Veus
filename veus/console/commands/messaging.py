@@ -1,8 +1,10 @@
 from typing import Optional, Union
 from InquirerPy import inquirer
 from InquirerPy.base.control import Choice
+from prompt_toolkit import print_formatted_text, ANSI
 from veus.console.registry import cmd
 from veus.console.colors import Colors
+from veus.console.tui import ChatTUI
 
 @cmd.register(name="message", category="Messaging", description="Send a message", aliases=["msg", "send"])
 async def message(ctx, target: str = "focus", content: str = "", amount: Union[int, str] = 1):
@@ -233,7 +235,9 @@ async def fetch(ctx, limit_or_cmd: str = "10", message_id: Optional[str] = None,
         ctx.last_oldest_id = sorted_data[0]['id']
         ctx.last_newest_id = sorted_data[-1]['id']
 
-        print(f"\n {Colors.FG_MAGENTA}--- Message Window ({len(data)}) ---{Colors.RESET}")
+        # Legacy industrial header
+        header = f"{Colors.FG_MAGENTA}○{Colors.RESET} {Colors.FG_WHITE}MESSAGE WINDOW ({len(data)}){Colors.RESET}"
+        print_formatted_text(ANSI(f"\n {header}"))
         for m in sorted_data:
             author = m['author']['username']
             content = m['content']
@@ -255,8 +259,8 @@ async def fetch(ctx, limit_or_cmd: str = "10", message_id: Optional[str] = None,
             if m.get('attachments'):
                 attach_str = " ".join([f"{Colors.FG_GREEN}[{a['url']}]{Colors.RESET}" for a in m['attachments']])
             
-            print(f" {Colors.FG_CYAN}{suffix}{Colors.RESET} | {ref_str}{Colors.FG_WHITE}{author}{Colors.RESET}: {content} {attach_str}")
-        print("")
+            print_formatted_text(ANSI(f" {Colors.FG_CYAN}{suffix}{Colors.RESET} | {ref_str}{Colors.FG_WHITE}{author}{Colors.RESET}: {content} {attach_str}"))
+        print_formatted_text(ANSI(""))
     else:
         ctx.logger.error(f"Failed to fetch messages (Status: {status})")
 
@@ -305,21 +309,23 @@ async def inspect(ctx, message_id: str):
         content = data.get('content', '{No Content}')
         ts = data['timestamp']
         
-        print(f"\n {Colors.FG_MAGENTA}○ INSPECT {Colors.FG_WHITE}{full_id}{Colors.RESET}")
-        print(f"   {Colors.FG_CYAN}Author:{Colors.RESET}   {author}")
-        print(f"   {Colors.FG_CYAN}Time:{Colors.RESET}     {ts}")
+        # Legacy industrial header
+        hdr = f"{Colors.FG_MAGENTA}○{Colors.RESET} {Colors.FG_WHITE}INSPECT {full_id}{Colors.RESET}"
+        print_formatted_text(ANSI(f"\n {hdr}"))
+        print_formatted_text(ANSI(f"   {Colors.FG_CYAN}Author:{Colors.RESET}   {author}"))
+        print_formatted_text(ANSI(f"   {Colors.FG_CYAN}Time:{Colors.RESET}     {ts}"))
         
         ref = data.get('message_reference', {})
         if ref and ref.get('message_id'):
-            print(f"   {Colors.FG_YELLOW}Reply to:{Colors.RESET}  {ref.get('message_id')}")
+            print_formatted_text(ANSI(f"   {Colors.FG_YELLOW}Reply to:{Colors.RESET}  {ref.get('message_id')}"))
             
         # Attachments in inspect
         if data.get('attachments'):
-            print(f"   {Colors.FG_GREEN}Attachments:{Colors.RESET}")
+            print_formatted_text(ANSI(f"   {Colors.FG_GREEN}Attachments:{Colors.RESET}"))
             for a in data['attachments']:
-                print(f"     - {a['url']}")
+                print_formatted_text(ANSI(f"     - {a['url']}"))
             
-        print(f"\n   {Colors.FG_WHITE}{content}{Colors.RESET}\n")
+        print_formatted_text(ANSI(f"\n   {Colors.FG_WHITE}{content}{Colors.RESET}\n"))
     else:
         ctx.logger.error(f"Inaccessible: Received status {status}")
 
@@ -374,3 +380,13 @@ async def clear_self(ctx, amount: Union[int, str] = 10):
                 break
 
     ctx.logger.success(f"Cleared {deleted} message(s).")
+
+@cmd.register(name="chat", category="Messaging", description="Enter interactive TUI chat mode", aliases=["tui"])
+async def chat_mode(ctx):
+    """Switch to a live, fullscreen interactive chat TUI."""
+    if not ctx.last_channel_id:
+        ctx.logger.error("No channel focused. Use 'select' or 'fetch' first.")
+        return
+        
+    tui = ChatTUI(ctx)
+    await tui.run()

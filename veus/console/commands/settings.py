@@ -9,6 +9,7 @@ async def settings(ctx):
         choices = [
             {"name": f"API Logging: {'[ON]' if ctx.config.get('show_proxy_logs', True) else '[OFF]'}", "value": "show_proxy_logs"},
             {"name": f"SSL Verification: {'[ON]' if ctx.config.get('ssl_verify', True) else '[OFF]'}", "value": "ssl_verify"},
+            {"name": f"Global Monitor (The Eye): {'[ON]' if ctx.config.get('eye_monitor', False) else '[OFF]'}", "value": "eye_monitor"},
             {"name": "Done", "value": "exit"}
         ]
         
@@ -40,3 +41,11 @@ async def settings(ctx):
             
             state = f"{Colors.FG_GREEN}Enabled{Colors.RESET}" if new_val else f"{Colors.FG_RED}Disabled{Colors.RESET}"
             ctx.logger.success(f"SSL Verification: {state} (Session restart required)")
+            
+        elif selected == "eye_monitor":
+            current = ctx.config.get("eye_monitor", False)
+            new_val = not current
+            ctx.config.set("eye_monitor", new_val)
+            
+            state = f"{Colors.FG_GREEN}Enabled{Colors.RESET}" if new_val else f"{Colors.FG_RED}Disabled{Colors.RESET}"
+            ctx.logger.success(f"The Eye (Global Monitor): {state}")
