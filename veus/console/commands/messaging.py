@@ -1,23 +1,89 @@
-from typing import Optional
+from typing import Optional, Union
 from InquirerPy import inquirer
 from InquirerPy.base.control import Choice
 from veus.console.registry import cmd
 from veus.console.colors import Colors
 
-@cmd.register(name="message", category="Messaging", description="Send message to channel", aliases=["msg", "send"])
-async def message(ctx, channel_id: str, content: str, amount: int = 1):
-    if not ctx.user: return
-    # If this was called with a raw ID, we don't know the name easily locally without fetching
-    # But we can try to find it if we have channels cached
-    await ctx.user.send_message(channel_id, content, amount)
-    ctx.logger.success(f"Sent {amount} message(s) to {channel_id}")
-    ctx.last_channel_id = channel_id
+@cmd.register(name="message", category="Messaging", description="Send a message", aliases=["msg", "send"])
+async def message(ctx, target: str = "focus", content: str = ""):
+    if not ctx.current_guild and target == "all":
+        ctx.logger.error("'all' broadcast is only available within a guild context.")
+        return
+
+    # Senior Interactivity: If no target, prompt for channel
+    if target == "focus" and not ctx.last_channel_id:
+        if not ctx.current_guild:
+            ctx.logger.error("No guild selected. Use 'sv' first.")
+            return
+            
+        channels = await ctx.current_guild.get_channels()
+        choices = [Choice(c['id'], c['name']) for c in channels if c['type'] == 0]
+        target = await inquirer.fuzzy(message="Select Channel:", choices=choices).execute_async()
+        if not target: return
+        
+        # Update focus context
+        ctx.last_channel_id = target
+        for c in choices:
+            if c.value == target:
+                ctx.last_channel_name = c.name
+                break
+
+    target_ids = []
+    if target == "focus":
+        target_ids = [ctx.last_channel_id]
+    elif target == "all":
+        channels = await ctx.current_guild.get_channels()
+        target_ids = [c['id'] for c in channels if c['type'] == 0]
+    elif "," in target:
+        target_ids = [tid.strip() for tid in target.split(",")]
+    else:
+        target_ids = [target]
+
+    if not content:
+        content = await inquirer.text(message="Message content:").execute_async()
+    
+    if not content: return
+
+    import asyncio
+    tasks = [ctx.rq.api.post(f"channels/{tid}/messages", {"content": content}) for tid in target_ids]
+    
+    with ctx.logger.yaspin(text=f"dispatching to {len(target_ids)} chan(s)...", color="magenta"):
+        await asyncio.gather(*tasks)
+    
+    ctx.logger.success("sent")
+
+@cmd.register(name="embed", category="Messaging", description="Send a JSON embed (Bot only)")
+async def send_embed(ctx, channel_id: str, json_data: str):
+    import json
+    try:
+        payload = json.loads(json_data)
+    except Exception as e:
+        ctx.logger.error(f"Invalid JSON: {e}")
+        return
+
+    if channel_id == "focus":
+        channel_id = getattr(ctx, "last_channel_id", None)
+        if not channel_id:
+            ctx.logger.error("No focus channel.")
+            return
+
+    _, status = await ctx.rq.api.post(f"channels/{channel_id}/messages", payload)
+    if status == 200:
+        ctx.logger.success("Embed sent.")
+    else:
+        ctx.logger.error(f"Failed to send embed (Status: {status})")
 
 @cmd.register(name="direct", category="Messaging", description="Direct Message a user", aliases=["dm", "priv"])
-async def direct(ctx, recipient_id: str, content: str, amount: int = 1):
+async def direct(ctx, recipient_id: str, content: str, amount: Union[int, str] = 1):
     if not ctx.user: return
-    await ctx.user.send_dm(recipient_id, content, amount)
-    ctx.logger.success(f"Sent {amount} DM(s) to {recipient_id}")
+    try:
+        amt_int = int(amount)
+        await ctx.user.send_dm(recipient_id, content, amt_int)
+        ctx.logger.success(f"Sent {amt_int} DM(s) to {recipient_id}")
+    except ValueError:
+        ctx.logger.error(f"Invalid amount: {amount}")
+    except Exception as e:
+        ctx.logger.error(f"DM failed: {e}")
 
 @cmd.register(name="dms", category="Messaging", description="List and focus DM conversations")
 async def dms(ctx):

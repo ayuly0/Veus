@@ -1,5 +1,5 @@
 import asyncio
-from typing import Optional
+from typing import Optional, Union
 from InquirerPy import inquirer
 from InquirerPy.base.control import Choice
 from veus.console.registry import cmd
@@ -77,37 +77,61 @@ async def select(ctx, channel_id: Optional[str] = None):
                 break
 
     ctx.last_channel_id = channel_id
+    ctx.last_messages = {} # Clear resolution cache on switch
     ctx.logger.success(f"Focused on channel: {ctx.last_channel_name or channel_id}")
 
+@cmd.register(name="nick", category="Profile", description="Change nickname in current server")
+async def nick(ctx, nickname: str):
+    if not ctx.current_guild:
+        ctx.logger.error("No guild selected.")
+        return
+        
+    success = await ctx.current_guild.change_nickname(nickname)
+    if success:
+        ctx.logger.success(f"Changed nickname to: {nickname}")
+    else:
+        ctx.logger.error("Failed to change nickname. Check permissions.")
+
 @cmd.register(name="purge", category="Moderation", description="Mass delete messages in current channel", aliases=["p"])
-async def purge(ctx, amount: int = 50):
+async def purge(ctx, amount: Union[int, str] = 50):
     channel_id = getattr(ctx, "last_channel_id", None)
     if not channel_id:
         ctx.logger.error("No channel active. Use 'fetch' or 'message' first.")
         return
         
-    ctx.logger.info(f"Purging {amount} messages in {channel_id}...")
-    # Fetch message IDs first
-    data, status = await ctx.rq.api.get(f"channels/{channel_id}/messages?limit={amount}")
-    if status != 200:
-        ctx.logger.error("Failed to fetch messages for purge.")
-        return
-        
-    message_ids = [m['id'] for m in data]
-    # Re-using delete_channels logic for mass message deletion
-    tasks = [ctx.rq.api.delete(f"channels/{channel_id}/messages/{mid}") for mid in message_ids]
-    await asyncio.gather(*tasks)
-    ctx.logger.success(f"Purged {len(message_ids)} messages.")
+    try:
+        amount_int = int(amount)
+        ctx.logger.info(f"Purging {amount_int} messages in {channel_id}...")
+        # Fetch message IDs first
+        data, status = await ctx.rq.api.get(f"channels/{channel_id}/messages?limit={amount_int}")
+        if status != 200:
+            ctx.logger.error("Failed to fetch messages for purge.")
+            return
+            
+        message_ids = [m['id'] for m in data]
+        tasks = [ctx.rq.api.delete(f"channels/{channel_id}/messages/{mid}") for mid in message_ids]
+        await asyncio.gather(*tasks)
+        ctx.logger.success(f"Purged {len(message_ids)} messages.")
+    except ValueError:
+        ctx.logger.error(f"Invalid amount: {amount}")
+    except Exception as e:
+        ctx.logger.error(f"Purge failed: {e}")
 
 @cmd.register(name="slowmode", category="Moderation", description="Set channel slowmode in seconds", aliases=["sm"])
-async def slowmode(ctx, seconds: int = 0):
+async def slowmode(ctx, seconds: Union[int, str] = 0):
     channel_id = getattr(ctx, "last_channel_id", None)
     if not channel_id:
         ctx.logger.error("No channel active.")
         return
         
-    _, status = await ctx.rq.api.patch(f"channels/{channel_id}", {"rate_limit_per_user": seconds})
-    if status == 200:
-        ctx.logger.success(f"Slowmode set to {seconds}s.")
-    else:
-        ctx.logger.error("Failed to set slowmode.")
+    try:
+        sec_int = int(seconds)
+        _, status = await ctx.rq.api.patch(f"channels/{channel_id}", {"rate_limit_per_user": sec_int})
+        if status == 200:
+            ctx.logger.success(f"Slowmode set to {sec_int}s.")
+        else:
+            ctx.logger.error(f"Failed to set slowmode (Status: {status})")
+    except ValueError:
+        ctx.logger.error(f"Invalid seconds: {seconds}")
+    except Exception as e:
+        ctx.logger.error(f"Slowmode update failed: {e}")

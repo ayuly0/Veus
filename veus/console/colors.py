@@ -21,5 +21,6 @@ class Colors:
 	BG_YELLOW = _CFC + "48;2;255;204;92m"
 	BG_BLUE = _CFC + "48;2;0;156;249m"
 	BG_CYAN = _CFC + "48;2;0;201;253m"
+	BG_SOFT_CYAN = _CFC + "0;46m"
 	BG_WHITE = _CFC + "48;2;255;255;255m"
 	BG_BLACK = _CFC + "48;2;0;0;0m"

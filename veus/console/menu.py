@@ -32,24 +32,28 @@ class Menu:
         from veus.core.proxy_manager import ProxyManager
         self.proxy_mgr = ProxyManager(self.logger)
         self.proxy_mgr.strategy = self.config.get("proxy_strategy", "round-robin")
+        
+        # Session State
         self.rq: Optional[Requester] = None
         self.user: Optional[User] = None
         self.guilds: Optional[Guilds] = None
         self.current_guild: Optional[Guild] = None
+        
+        # Messaging Context (Soft State)
         self.last_channel_id: Optional[str] = None
         self.last_channel_name: Optional[str] = None
-        self.last_messages: dict[str, list[dict]] = {} # suffix -> [{"id": full_id, "author": author, "content": content}]
+        self.last_messages: dict[str, list[dict]] = {} 
         self.last_oldest_id: Optional[str] = None
         self.last_newest_id: Optional[str] = None
+        
         self._running = True
 
     async def start(self):
         """Main entry point for the menu loop."""
-        os.system("cls" if os.name == "nt" else "clear")
+        os.system("clear" if os.name != "nt" else "cls")
         
-        # Minimalist & beautiful banner
-        print(f"\n {Colors.FG_CYAN}veus{Colors.RESET} {Colors.FG_WHITE}· a shell discord experience{Colors.RESET}")
-        print(f" {Colors.FG_WHITE}───────────────────────────{Colors.RESET}\n")
+        # Soft, chill, minimal banner
+        print(f"\n {Colors.FG_MAGENTA}◌{Colors.RESET} {Colors.FG_WHITE}veus{Colors.RESET} {Colors.FG_CYAN}·{Colors.RESET} {Colors.FG_WHITE}shell{Colors.RESET}\n")
         
         await self.login()
         await self.main_loop()
@@ -59,49 +63,33 @@ class Menu:
         if self.rq:
             await self.rq.shutdown()
             
-        # Unified Setup (The Landing Zone)
         token, is_bot, verify, proxies = await self.tkh.setup_session(self.config)
         
-        # Apply Proxies
         if proxies:
             self.proxy_mgr.add_proxies(proxies)
         
-        # Initialize Requester
-        self.rq = Requester(
-            token, 
-            is_bot, 
-            self.logger, 
-            proxy_mgr=self.proxy_mgr, 
-            verify=verify
-        )
+        self.rq = Requester(token, is_bot, self.logger, proxy_mgr=self.proxy_mgr, verify=verify)
         self.user = User(self.rq, self.logger)
         self.guilds = Guilds(self.rq, self.logger)
 
-        # Senior Speedup: Parallelize initialization
-        with self.logger.yaspin(text="Synchronizing profile and server list...", color="cyan"):
+        with self.logger.yaspin(text="syncing setup...", color="magenta"):
             await asyncio.gather(
                 self.user.initialize(),
                 self.guilds.fetch_all()
             )
             
-        self.logger.success("Session initiated successfully.")
+        self.logger.success("session live")
 
     async def main_loop(self):
         """Senior command loop with rich feedback."""
-        # Setup persistent history
-        history_path = os.path.expanduser("~/.veus_history")
+        history_path = os.path.expanduser(self.config.get("history_file", "~/.veus_history"))
         session = PromptSession(history=FileHistory(history_path))
         
         while self._running:
             prompt = self._get_prompt()
             try:
-                # Dynamic completer setup
                 completer = await cmd.get_completer(self)
-                
-                result = await session.prompt_async(
-                    ANSI(prompt),
-                    completer=completer,
-                )
+                result = await session.prompt_async(ANSI(prompt), completer=completer)
                 
                 if not result: continue
                 
@@ -113,66 +101,34 @@ class Menu:
                 if metadata:
                     await self._execute_command(metadata, args)
                 else:
-                    self.logger.error(f"Command '{cmd_name}' not found. Type 'help' for available commands.")
+                    self.logger.error(f"command '{cmd_name}' unknown")
                     
             except KeyboardInterrupt:
-                print("") # New line
+                print("")
                 continue
             except Exception as e:
-                self.logger.error(f"Critical error in loop: {e}")
+                self.logger.error(f"loop error: {e}")
 
     def _get_prompt(self) -> str:
-        """Softer, chill prompt aesthetic."""
-        user_part = f"{Colors.FG_MAGENTA}◖ {self.user.username} ◗{Colors.RESET}" if self.user else ""
-        guild_part = f" {Colors.FG_CYAN}{self.current_guild.name}{Colors.RESET}" if self.current_guild else ""
-        chan_part = f" {Colors.FG_WHITE}#{self.last_channel_name}{Colors.RESET}" if self.last_channel_name else ""
+        """Minimalist, chill prompt aesthetic."""
+        user = f"{Colors.FG_CYAN}◖{Colors.BG_SOFT_CYAN}{Colors.FG_WHITE} {self.user.username} {Colors.RESET}{Colors.FG_CYAN}◗{Colors.RESET}" if self.user else ""
+        guild = f" {Colors.FG_MAGENTA}{self.current_guild.name}{Colors.RESET}" if self.current_guild else ""
+        chan = f" {Colors.FG_WHITE}#{self.last_channel_name}{Colors.RESET}" if self.last_channel_name else ""
         
-        return f"{user_part}{guild_part}{chan_part} {Colors.FG_WHITE}»{Colors.RESET} "
+        return f"{user}{guild}{chan} {Colors.FG_CYAN}»{Colors.RESET} "
 
     async def _execute_command(self, metadata: Any, args: list[str]):
-        """Sanitized command execution with interactive fallbacks."""
+        """Decentralized command execution."""
         try:
-            # Check required arguments
             req_params = [p for p in metadata.params if p.default == inspect.Parameter.empty]
             
-            # If arguments are missing, we'll try to prompt for them interactively
-            # This is the "Senior" way - don't fail, assist.
             final_args = list(args)
             if len(final_args) < len(req_params):
-                missing_count = len(req_params) - len(final_args)
-                self.logger.info(f"Command '{metadata.name}' requires more info. Prompting...")
-                
-                # We handle specific commands with custom interactive logic
-                if metadata.name == "message":
-                    if len(final_args) == 0: # Missing channel and message
-                        if not self.current_guild:
-                            self.logger.error("No guild selected. Please select a guild first with 'guilds'.")
-                            return
-                            
-                        channels = await self.current_guild.get_channels()
-                        if not channels:
-                            self.logger.error("No channels available in this guild.")
-                            return
-                        choices = [Choice(c['id'], c['name']) for c in channels if c['type'] == 0]
-                        channel_id = await inquirer.fuzzy(message="Select Channel:", choices=choices).execute_async()
-                        if not channel_id: return
-                        final_args.append(channel_id)
-                        
-                        # Sync name for prompt
-                        self.last_channel_id = channel_id
-                        for c in choices:
-                            if c.value == channel_id:
-                                self.last_channel_name = c.name
-                                break
-                    
-                    if len(final_args) == 1: # Missing message content
-                        msg_content = await inquirer.text(message="Message:").execute_async()
-                        final_args.append(msg_content)
-                
-                # For any other missing args, we do generic text prompts if no custom logic exists
+                self.logger.info(f"command '{metadata.name}' needs details...")
                 while len(final_args) < len(req_params):
                     p = req_params[len(final_args)]
-                    val = await inquirer.text(message=f"Enter {p.name}:").execute_async()
+                    val = await inquirer.text(message=f"{p.name}:").execute_async()
+                    if not val: return 
                     final_args.append(val)
 
             if metadata.is_async:
@@ -180,4 +136,4 @@ class Menu:
             else:
                 metadata.func(self, *final_args)
         except Exception as e:
-            self.logger.error(f"Failed to execute '{metadata.name}': {e}")
+            self.logger.error(f"Execution failed: {e}")
