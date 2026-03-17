@@ -3,7 +3,7 @@
 <div align="center">
   <h1 align="center">Veus</h1>
   <p align="center">
-    <strong>The Discord Experience</strong>
+    <strong>The Terminal Shell Experience</strong>
     <br />
     A minimalist, high-performance Discord terminal controller and shell.
     <br />
@@ -17,13 +17,13 @@
 
 ## The Experience
 
-Veus (v1) transforms your Discord interaction into a professional terminal shell. Built with a senior-tier asynchronous architecture, it focuses on performance, security, and visual excellence.
+Veus (v1) transforms your Discord interaction into a terminal shell. Built with a senior-tier asynchronous architecture, it focuses on performance, security, and visual excellence.
 
 ### Key Highlights
 
 - **High-Performance Startup**: Parallelized synchronization of profile and server data.
 - **Bulletproof ID Resolution**: Smart 4-digit shortcuts with interactive collision handling.
-- **Windowed Fetching**: Professional pagination with older/newer scrolling and targeted jumps.
+- **Windowed Fetching**: Pagination with older/newer scrolling and targeted jumps.
 - **Proxy System**: Round-robin and Random rotation with automatic health tracking and SSL bypass.
 - **The Landing Zone**: A unified, high-impact session initiation menu (Direct, Proxy, or Vault).
 - **Deep Message Inspection**: Full context retrieval for any message ID (Direct + Fallback).
