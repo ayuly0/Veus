@@ -29,8 +29,12 @@ RUN apk del .build-deps
 # Copy the rest of the application code
 COPY . .
 
-# Ensure the scripts directory exists (it will be mounted as a volume anyway)
-RUN mkdir -p scripts
+RUN addgroup -S veus-group && adduser -S veus-ops -G veus-group && \
+    mkdir -p scripts downloads && \
+    chown -R veus-ops:veus-group /app
+
+# Switch to non-root user
+USER veus-ops
 
 # Set the entrypoint to run the module
 ENTRYPOINT ["python", "-m", "veus"]
