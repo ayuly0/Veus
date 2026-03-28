@@ -1,0 +1,13 @@
+services:
+  veus:
+    build: .
+    container_name: veus-shell
+    # Key for interactive CLI tools like InquirerPy and Yaspin
+    tty: true
+    stdin_open: true
+    # Volumes mount local files into the container for easy editing and persistence
+    volumes:
+      - ./scripts:/app/scripts:z
+      - ./tokens.txt:/app/tokens.txt:z
+    # Network mode host could be used if proxying requires it, but default is fine here
+    restart: "no"

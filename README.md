@@ -47,6 +47,15 @@ Veus (v1) transforms your Discord interaction into a terminal shell. Built with 
    python -m veus
    ```
 
+### 🐳 Containerized Setup (Docker / Podman)
+
+For a secure, pre-configured environment (recommended), see the **[Docker Setup Guide](DOCKER_GUIDE.md)**.
+
+```sh
+# Quick Start (Podman)
+podman-compose up --build
+```
+
 ### Quick Config
 - **tokens.txt**: Place your Discord tokens (one per line) for use with the **Identity Vault**.
 - **proxies.txt**: Add your proxies (formatted as `http://user:pass@host:port`) for the **Secure Tunnel**.
