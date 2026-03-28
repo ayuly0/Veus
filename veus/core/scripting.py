@@ -11,6 +11,10 @@ class ScriptingEngine:
         self.logger = logger
         self.scripts_dir = scripts_dir
         self.lua = LuaRuntime(unpack_returned_tuples=True)
+        
+        # Hardened Sandbox: Remove dangerous Lua standard libraries to prevent RCE
+        self.lua.execute('os = nil; io = nil; package = nil; debug = nil;')
+        
         self._hooks = {}
         
         # Ensure scripts directory exists

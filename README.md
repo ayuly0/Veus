@@ -56,9 +56,19 @@ For a secure, pre-configured environment (recommended), see the **[Docker Setup 
 podman-compose up --build
 ```
 
-### Quick Config
-- **tokens.txt**: Place your Discord tokens (one per line) for use with the **Identity Vault**.
-- **proxies.txt**: Add your proxies (formatted as `http://user:pass@host:port`) for the **Secure Tunnel**.
+### Configuration & Secrets
+
+Veus supports secure secret management via environment variables.
+
+1. **.env Configuration (Recommended)**:
+   Copy `.env.example` to `.env` and fill in your details:
+   ```sh
+   DISCORD_TOKEN=your_token_here
+   DISCORD_IS_BOT=false
+   ```
+2. **Legacy Vault (Alternative)**:
+   - **tokens.txt**: Place Discord tokens (one per line) for use with the **Identity Vault**. *Note: A security warning will trigger if this legacy method is used.*
+   - **proxies.txt**: Add proxies (`http://user:pass@host:port`) for the **Secure Tunnel**.
 
 ---
 
@@ -83,11 +93,16 @@ podman-compose up --build
 
 ---
 
-## Security & Privacy
-- **Zero-Storage**: Tokens are never stored in plain-text config files.
-- **Secure Tunneling**: Full support for SSL bypass and custom proxy rotations.
-- **Ephemeral Sessions**: Designed to be clean and leave no trace on exit.
-- **Silent Network**: Intelligent caching to reduce unnecessary API telemetry.
+## Security & Hardening
+
+Veus is built with a "Security-First" architecture to protect your identities:
+
+- **Secret Management**: Support for `.env` and environment variables to prevent cleartext token exposure.
+- **Hardened Sandbox**: Lua scripting engine is restricted to prevent Remote Code Execution (RCE).
+- **Path Traversal Protection**: Secure path sanitization for all file downloads.
+- **SSL-First Tunneling**: Mandatory SSL verification by default with high-impact warnings for insecure configurations.
+- **Least-Privilege Docker**: Official images run as a non-root user (`veus-ops`) to prevent container escape.
+- **Silent Telemetry**: Intelligent caching to reduce unnecessary API fingerprints.
 
 ---
 

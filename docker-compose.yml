@@ -8,6 +8,8 @@ services:
     # Volumes mount local files into the container for easy editing and persistence
     volumes:
       - ./scripts:/app/scripts:z
-      - ./tokens.txt:/app/tokens.txt:z
-    # Network mode host could be used if proxying requires it, but default is fine here
+      - ./downloads:/app/downloads:z
+    # Securely inject secrets from .env instead of mounting cleartext files
+    env_file:
+      - .env
     restart: "no"

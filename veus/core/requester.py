@@ -55,14 +55,22 @@ class Requester:
         return await asyncio.gather(*tasks)
 
     async def download_file(self, url: str, dest_path: str) -> bool:
-        """Download a file directly to disk."""
+        """Download a file directly to disk with path traversal protection."""
         try:
+            # Secure path resolution: restrict to downloads/ directory
+            base_dir = os.path.abspath("downloads")
+            safe_name = os.path.normpath("/" + dest_path).lstrip("/")
+            full_path = os.path.abspath(os.path.join(base_dir, safe_name))
+            
+            if not full_path.startswith(base_dir):
+                full_path = os.path.join(base_dir, os.path.basename(dest_path))
+            
             async with httpx.AsyncClient(timeout=60.0) as client:
                 async with client.stream("GET", url) as response:
                     if response.status_code != 200: return False
                     
-                    os.makedirs(os.path.dirname(dest_path), exist_ok=True)
-                    with open(dest_path, "wb") as f:
+                    os.makedirs(os.path.dirname(full_path), exist_ok=True)
+                    with open(full_path, "wb") as f:
                         async for chunk in response.aiter_bytes():
                             f.write(chunk)
             return True
